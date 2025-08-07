@@ -48,23 +48,17 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 **Build**
 - `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
 
-## Start proxy (in a separate terminal)
-`./ctmp_proxy` &
-→ source on port 33333
-→ destinations on port 44444
+## Start proxy
+- `./ctmp_proxy`
+- keep this running while testing
 
-**Usage**
-1) Send CTMP frames as your source:
-nc localhost 33333 < example.ctmp
-
-2) Connect any number of destinations:
-nc localhost 44444
 
 ## Testing
 
+- open a new terminal window for testing
 **Stage 1 tests**
-`cd ~/projects/wire-storm`
-`python3 tests.py`
+- `cd ~/projects/wire-storm`
+- `python3 tests.py`
 
 **Stage 2 tests**
 `cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`
