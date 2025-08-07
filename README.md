@@ -41,14 +41,14 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 
 ## Build & Run
 
-**Clone & enter**
-`git clone git@github.com:rad-cmd/ctmp-proxy.git`
-`cd ctmp-proxy`
+**Clone & enter repository**
+- `git clone git@github.com:rad-cmd/ctmp-proxy.git`
+- `cd ctmp-proxy`
 
 **Build**
-`g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
+- `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
 
-# Start proxy (in a separate terminal)
+## Start proxy (in a separate terminal)
 `./ctmp_proxy` &
 → source on port 33333
 → destinations on port 44444
