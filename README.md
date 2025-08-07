@@ -41,16 +41,21 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 
 ## Build & Run
 
-**Clone & enter repository**
-- `git clone git@github.com:rad-cmd/ctmp-proxy.git`
-- `cd ctmp-proxy`
+Clone & build (choose one):
 
-**Build**
-- `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
+1) HTTPS (no SSH key needed):  
+`git clone https://github.com/rad-cmd/ctmp-proxy.git`
 
-## Start proxy
-- `./ctmp_proxy` (keep this running)
+or
 
+2)SSH (if you’ve added your SSH key to GitHub)**:  
+`git clone git@github.com:rad-cmd/ctmp-proxy.git`
+
+Then:
+  
+- `cd ctmp-proxy`  
+- `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp``  
+- `./ctmp_proxy` (This starts the proxy- keep this running)
 
 ## Testing
 
