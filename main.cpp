@@ -1,4 +1,3 @@
-// main.cpp
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -26,7 +25,7 @@ std::vector<int> clients;
 std::mutex clients_mutex;
 std::atomic<bool> running{true};
 
-// Calculate 16-bit one’s-complement checksum
+// Calculate 16-bit checksum
 static uint16_t calculateChecksum(const std::vector<uint8_t> &data)
 {
   uint32_t sum = 0;
@@ -46,8 +45,8 @@ static uint16_t calculateChecksum(const std::vector<uint8_t> &data)
   return uint16_t(~sum) & 0xFFFF;
 }
 
-// Read and validate one CTMP message from sock.
-// Returns false on error or invalid packet.
+// Read and validate one CTMP message from sock
+// Returns false on error or invalid packet
 bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
 {
   uint8_t header_buf[HEADER_LENGTH];
