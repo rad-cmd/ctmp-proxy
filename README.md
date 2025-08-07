@@ -50,21 +50,22 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 
 ## Start proxy
 - `./ctmp_proxy`
-- keep this running while testing
+- Keep this running
 
 
 ## Testing
 
-- open a new terminal window for testing
+Open a new terminal window for testing  
+
 **Stage 1 tests**
 - `cd ~/projects/wire-storm`
 - `python3 tests.py`
 
-**Stage 2 tests**
-`cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`
-`python3 tests.py`
+**Stage 2 tests**  
+`cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`  
+`python3 tests.py`  
 
-Both tests should print **OK**
+Both sets of tests should print **OK**
 
-## License
+## License  ø
 Submitted under CoreTech’s WIRE STORM challenge terms. 
