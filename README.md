@@ -1,6 +1,6 @@
 # CTMP Proxy for Operation WIRE STORM
 
-A high-speed, multi-threaded TCP proxy in C++17 implementing the CoreTech Message Protocol (CTMP), now extended for sensitive-message checksum validation.
+A high-speed, multi-threaded TCP proxy in C++17 implementing the CoreTech Message Protocol (CTMP), extended for sensitive-message checksum validation.
 
 ---
 
@@ -49,8 +49,7 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 - `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
 
 ## Start proxy
-- `./ctmp_proxy`
-- Keep this running
+- `./ctmp_proxy` (keep this running)
 
 
 ## Testing
@@ -62,10 +61,10 @@ Open a new terminal window for testing
 - `python3 tests.py`
 
 **Stage 2 tests**  
-`cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`  
-`python3 tests.py`  
+- `cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`  
+- `python3 tests.py`  
 
 Both sets of tests should print **OK**
 
-## License  ø
+## License
 Submitted under CoreTech’s WIRE STORM challenge terms. 
