@@ -48,13 +48,13 @@ Clone & build (choose one):
 
 or
 
-2)SSH (if you’ve added your SSH key to GitHub)**:  
+2) SSH (if you’ve added your SSH key to GitHub)**:  
 `git clone git@github.com:rad-cmd/ctmp-proxy.git`
 
 Then:
   
 - `cd ctmp-proxy`  
-- `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp``  
+- `g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`  
 - `./ctmp_proxy` (This starts the proxy- keep this running)
 
 ## Testing
