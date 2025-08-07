@@ -45,24 +45,27 @@ void handleSignal(int)
   }
 }
 
-// Compute 16-bit one's-complement checksum
-uint16_t computeChecksum(const std::vector<uint8_t> &data)
+// Validate 16-bit one's-complement sum across all 16-bit words == 0xFFFF
+bool validateChecksum(const std::vector<uint8_t> &buf)
 {
   uint32_t sum = 0;
-  size_t n = data.size();
+  size_t n = buf.size();
+  // Sum all 16-bit words
   for (size_t i = 0; i + 1 < n; i += 2)
   {
-    sum += (uint16_t(data[i]) << 8) | data[i + 1];
+    sum += (uint16_t(buf[i]) << 8) | buf[i + 1];
     if (sum > 0xFFFF)
       sum = (sum & 0xFFFF) + 1;
   }
+  // If odd length, last byte + zero
   if (n & 1)
   {
-    sum += uint16_t(data[n - 1]) << 8;
+    sum += uint16_t(buf[n - 1]) << 8;
     if (sum > 0xFFFF)
       sum = (sum & 0xFFFF) + 1;
   }
-  return uint16_t(~sum) & 0xFFFF;
+  // Valid if all bits set
+  return sum == 0xFFFF;
 }
 
 // Read and validate one CTMP message
@@ -76,8 +79,7 @@ bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
     return false;
   uint8_t options = hdr[1];
   uint16_t length = ntohs(*reinterpret_cast<uint16_t *>(hdr + 2));
-  uint16_t recvCksum = ntohs(*reinterpret_cast<uint16_t *>(hdr + 4));
-
+  // We do not pre-read the checksum here; it will be included in `out`
   if (length > MAX_BODY)
     return false;
   if (hdr[6] != 0 || hdr[7] != 0)
@@ -88,11 +90,10 @@ bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
   if (recv(sock, out.data() + HEADER_LEN, length, MSG_WAITALL) != length)
     return false;
 
-  if (options & 0x40)
+  bool isSensitive = (options & 0x40) != 0;
+  if (isSensitive)
   {
-    auto tmp = out;
-    tmp[4] = tmp[5] = MAGIC; // zero out checksum field
-    if (computeChecksum(tmp) != recvCksum)
+    if (!validateChecksum(out))
     {
       std::cerr << "[!] dropping packet: checksum mismatch\n";
       return false;
@@ -109,12 +110,11 @@ void sourceHandler(int srcFd)
   {
     if (!readCtmpMessage(srcFd, msg))
       break;
-
     std::lock_guard<std::mutex> lk(destLock);
     for (auto it = destClients.begin(); it != destClients.end();)
     {
       int d = *it;
-      if (send(d, msg.data(), msg.size(), MSG_NOSIGNAL) != (ssize_t)msg.size())
+      if (send(d, msg.data(), msg.size(), MSG_NOSIGNAL) != static_cast<ssize_t>(msg.size()))
       {
         close(d);
         it = destClients.erase(it);
@@ -136,14 +136,16 @@ void destHandler(int dstFd)
     destClients.push_back(dstFd);
   }
   char buf;
-  while (running.load() && recv(dstFd, &buf, 1, MSG_PEEK | MSG_DONTWAIT) > 0)
+  while (running.load() &&
+         recv(dstFd, &buf, 1, MSG_PEEK | MSG_DONTWAIT) > 0)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   close(dstFd);
   std::lock_guard<std::mutex> lk(destLock);
-  destClients.erase(std::remove(destClients.begin(), destClients.end(), dstFd),
-                    destClients.end());
+  destClients.erase(
+      std::remove(destClients.begin(), destClients.end(), dstFd),
+      destClients.end());
 }
 
 // Create and bind a listening socket
@@ -161,7 +163,7 @@ int makeListener(int port)
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
   addr.sin_addr.s_addr = INADDR_ANY;
-  if (bind(fd, (sockaddr *)&addr, sizeof(addr)) < 0)
+  if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0)
   {
     perror("bind");
     std::exit(1);
