@@ -6,7 +6,7 @@ A high-speed, multi-threaded TCP proxy in C++17 implementing the CoreTech Messag
 
 ## Mission Summary
 
-Your mission is to relay CTMP-framed messages from a single **source** to multiple **destination** clients, over a known-compromised server:
+The mission is to relay CTMP-framed messages from a single **source** to multiple **destination** clients, over a known-compromised server:
 
 - **Source** connects on TCP port **33333**  
 - **Destinations** connect on TCP port **44444**
@@ -41,36 +41,36 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 
 ## Build & Run
 
-```bash
-# Clone & enter
-git clone git@github.com:rad-cmd/ctmp-proxy.git
-cd ctmp-proxy
+**Clone & enter**
+`git clone git@github.com:rad-cmd/ctmp-proxy.git`
+`cd ctmp-proxy`
 
-# Build
-g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp
+**Build**
+`g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp`
 
-# Start proxy (background)
-./ctmp_proxy &
-#  → source on port 33333
-#  → destinations on port 44444
+# Start proxy (in a separate terminal)
+`./ctmp_proxy` &
+→ source on port 33333
+→ destinations on port 44444
 
-# Usage
-# 1) Send CTMP frames as your source:
+**Usage**
+1) Send CTMP frames as your source:
 nc localhost 33333 < example.ctmp
 
-# 2) Connect any number of destinations:
+2) Connect any number of destinations:
 nc localhost 44444
 
-# Testing
-# Stage 1 tests
-cd ~/projects/wire-storm
-python3 tests.py
+## Testing
 
-# Stage 2 tests
-cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0
-python3 tests.py
+**Stage 1 tests**
+`cd ~/projects/wire-storm`
+`python3 tests.py`
+
+**Stage 2 tests**
+`cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`
+`python3 tests.py`
 
 Both tests should print **OK**
 
-# License
+## License
 Submitted under CoreTech’s WIRE STORM challenge terms. 
