@@ -57,7 +57,7 @@ Followed by **DATA** (`LENGTH` bytes).
 - Validates magic, length, padding, and checksum  
 - Drops malformed or oversized packets  
 - `std::thread` + `std::mutex` for broadcasting  
-## No external dependencies (C++17 standard library only)
+**No external dependencies (C++17 standard library only)**
 
 ## Clone your repo
 git clone https://github.com/rad-cmd/ctmp-proxy.git
@@ -66,21 +66,21 @@ cd ctmp-proxy
 ## Build the proxy
 g++ -std=c++17 -pthread -Wall -Wextra -o ctmp_proxy main.cpp
 
-## 1) Start the proxy
+**1) Start the proxy**
 ./ctmp_proxy
 - Listens for the source on TCP port 33333
 -  Accepts multiple destinations on TCP port 44444
 
-## 2) Connect your source client
+**2) Connect your source client**
 (e.g., using netcat or your test harness)
 nc localhost 33333
 then send CTMP-framed messages
 
-## 3) Connect one or more destinations
+** 3) Connect one or more destinations**
 nc localhost 44444
  each will receive every valid message in the order they arrived
 
-## 4) Verify with the provided tests
+** 4) Verify with the provided tests**
 cd path/to/wire-storm
 python3 tests.py    # Stage 1 tests
 
