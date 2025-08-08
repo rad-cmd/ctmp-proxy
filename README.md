@@ -39,9 +39,11 @@ Followed by **DATA** (exactly `LENGTH` bytes).
 
 ---
 
-## Build & Run
+## Build
 
-Clone & build (choose one):
+Ubuntu 24.04 LTS with g++
+
+Clone & build (choose one of the following options):
 
 1) HTTPS (no SSH key needed):  
 `git clone https://github.com/rad-cmd/ctmp-proxy.git`
