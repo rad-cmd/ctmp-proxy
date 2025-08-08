@@ -1,18 +1,19 @@
+// main.cpp
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <cstdlib>
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <algorithm>
-#include <cstdlib>
 
 constexpr int SOURCE_PORT = 33333;
 constexpr int DEST_PORT = 44444;
@@ -20,56 +21,51 @@ constexpr int HEADER_LEN = 8;
 constexpr int MAX_BODY = 65535;
 constexpr uint8_t MAGIC = 0xCC;
 
-// Global state for shutdown
 std::atomic<bool> running{true};
-int srcListenerFd = -1;
-int dstListenerFd = -1;
+int src_listener = -1;
+int dst_listener = -1;
 
-// Protects destClients
-std::vector<int> destClients;
-std::mutex destLock;
+std::vector<int> sinks;
+std::mutex sinks_mu;
 
-// Signal handler: stop running and close listeners
-void handleSignal(int)
+static void handle_signal(int)
 {
   running.store(false);
-  if (srcListenerFd >= 0)
+  if (src_listener >= 0)
   {
-    close(srcListenerFd);
-    srcListenerFd = -1;
+    close(src_listener);
+    src_listener = -1;
   }
-  if (dstListenerFd >= 0)
+  if (dst_listener >= 0)
   {
-    close(dstListenerFd);
-    dstListenerFd = -1;
+    close(dst_listener);
+    dst_listener = -1;
   }
 }
 
-// Validate 16-bit one's-complement sum across all 16-bit words == 0xFFFF
-bool validateChecksum(const std::vector<uint8_t> &buf)
+// 16-bit one's-complement checksum of a byte buffer
+static uint16_t compute_checksum(const std::vector<uint8_t> &b)
 {
   uint32_t sum = 0;
-  size_t n = buf.size();
-  // Sum all 16-bit words
+  const size_t n = b.size();
+
   for (size_t i = 0; i + 1 < n; i += 2)
   {
-    sum += (uint16_t(buf[i]) << 8) | buf[i + 1];
+    sum += (uint16_t(b[i]) << 8) | b[i + 1];
     if (sum > 0xFFFF)
-      sum = (sum & 0xFFFF) + 1;
+      sum = (sum & 0xFFFF) + 1; // fold
   }
-  // If odd length, last byte + zero
   if (n & 1)
   {
-    sum += uint16_t(buf[n - 1]) << 8;
+    sum += uint16_t(b[n - 1]) << 8;
     if (sum > 0xFFFF)
       sum = (sum & 0xFFFF) + 1;
   }
-  // Valid if all bits set
-  return sum == 0xFFFF;
+  return uint16_t(~sum) & 0xFFFF;
 }
 
-// Read and validate one CTMP message
-bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
+// Read and validate a CTMP message from sock into out
+static bool read_ctmp(int sock, std::vector<uint8_t> &out)
 {
   uint8_t hdr[HEADER_LEN];
   if (recv(sock, hdr, HEADER_LEN, MSG_WAITALL) != HEADER_LEN)
@@ -77,23 +73,29 @@ bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
 
   if (hdr[0] != MAGIC)
     return false;
-  uint8_t options = hdr[1];
-  uint16_t length = ntohs(*reinterpret_cast<uint16_t *>(hdr + 2));
-  // We do not pre-read the checksum here; it will be included in `out`
-  if (length > MAX_BODY)
+
+  const uint8_t options = hdr[1];
+  const uint16_t len = ntohs(*reinterpret_cast<uint16_t *>(hdr + 2));
+  const uint16_t net_ck = ntohs(*reinterpret_cast<uint16_t *>(hdr + 4));
+
+  if (len > MAX_BODY)
     return false;
   if (hdr[6] != 0 || hdr[7] != 0)
+    return false; // padding must be zero
+
+  out.resize(HEADER_LEN + len);
+  std::memcpy(out.data(), hdr, HEADER_LEN);
+  if (recv(sock, out.data() + HEADER_LEN, len, MSG_WAITALL) != len)
     return false;
 
-  out.resize(HEADER_LEN + length);
-  memcpy(out.data(), hdr, HEADER_LEN);
-  if (recv(sock, out.data() + HEADER_LEN, length, MSG_WAITALL) != length)
-    return false;
-
-  bool isSensitive = (options & 0x40) != 0;
-  if (isSensitive)
+  // If sensitive (bit 1 -> 0x40), verify checksum
+  if (options & 0x40)
   {
-    if (!validateChecksum(out))
+    std::vector<uint8_t> tmp = out;
+    tmp[4] = 0xCC; // per spec: set checksum field to 0xCC bytes when computing
+    tmp[5] = 0xCC;
+    const uint16_t calc = compute_checksum(tmp);
+    if (calc != net_ck)
     {
       std::cerr << "[!] dropping packet: checksum mismatch\n";
       return false;
@@ -102,22 +104,23 @@ bool readCtmpMessage(int sock, std::vector<uint8_t> &out)
   return true;
 }
 
-// Broadcast loop from source
-void sourceHandler(int srcFd)
+static void source_loop(int fd)
 {
   std::vector<uint8_t> msg;
   while (running.load())
   {
-    if (!readCtmpMessage(srcFd, msg))
+    if (!read_ctmp(fd, msg))
       break;
-    std::lock_guard<std::mutex> lk(destLock);
-    for (auto it = destClients.begin(); it != destClients.end();)
+
+    std::lock_guard<std::mutex> lk(sinks_mu);
+    for (auto it = sinks.begin(); it != sinks.end();)
     {
       int d = *it;
-      if (send(d, msg.data(), msg.size(), MSG_NOSIGNAL) != static_cast<ssize_t>(msg.size()))
+      ssize_t n = send(d, msg.data(), msg.size(), MSG_NOSIGNAL);
+      if (n != static_cast<ssize_t>(msg.size()))
       {
         close(d);
-        it = destClients.erase(it);
+        it = sinks.erase(it);
       }
       else
       {
@@ -125,31 +128,30 @@ void sourceHandler(int srcFd)
       }
     }
   }
-  close(srcFd);
+  close(fd);
 }
 
-// Keep a destination alive until it disconnects
-void destHandler(int dstFd)
+static void sink_loop(int fd)
 {
   {
-    std::lock_guard<std::mutex> lk(destLock);
-    destClients.push_back(dstFd);
+    std::lock_guard<std::mutex> lk(sinks_mu);
+    sinks.push_back(fd);
   }
-  char buf;
+
+  // Stay connected until peer closes.
+  char peek;
   while (running.load() &&
-         recv(dstFd, &buf, 1, MSG_PEEK | MSG_DONTWAIT) > 0)
+         recv(fd, &peek, 1, MSG_PEEK | MSG_DONTWAIT) != 0)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  close(dstFd);
-  std::lock_guard<std::mutex> lk(destLock);
-  destClients.erase(
-      std::remove(destClients.begin(), destClients.end(), dstFd),
-      destClients.end());
+
+  close(fd);
+  std::lock_guard<std::mutex> lk(sinks_mu);
+  sinks.erase(std::remove(sinks.begin(), sinks.end(), fd), sinks.end());
 }
 
-// Create and bind a listening socket
-int makeListener(int port)
+static int make_listener(int port)
 {
   int fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0)
@@ -157,12 +159,15 @@ int makeListener(int port)
     perror("socket");
     std::exit(1);
   }
+
   int yes = 1;
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
   addr.sin_addr.s_addr = INADDR_ANY;
+
   if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0)
   {
     perror("bind");
@@ -178,37 +183,32 @@ int makeListener(int port)
 
 int main()
 {
-  // Install signal handlers
-  signal(SIGINT, handleSignal);
-  signal(SIGTERM, handleSignal);
+  signal(SIGINT, handle_signal);
+  signal(SIGTERM, handle_signal);
 
-  // Open listeners
-  srcListenerFd = makeListener(SOURCE_PORT);
-  dstListenerFd = makeListener(DEST_PORT);
+  src_listener = make_listener(SOURCE_PORT);
+  dst_listener = make_listener(DEST_PORT);
 
-  // Thread for the single source
-  std::thread([&]()
+  std::thread([]
               {
-        while (running.load()) {
-            int s = accept(srcListenerFd, nullptr, nullptr);
-            if (s < 0) break;
-            std::thread(sourceHandler, s).detach();
-        } })
+    while (running.load()) {
+      int s = accept(src_listener, nullptr, nullptr);
+      if (s < 0) break;
+      std::thread(source_loop, s).detach();
+    } })
       .detach();
 
-  // Main thread accepts multiple destinations
   while (running.load())
   {
-    int d = accept(dstListenerFd, nullptr, nullptr);
+    int d = accept(dst_listener, nullptr, nullptr);
     if (d < 0)
       break;
-    std::thread(destHandler, d).detach();
+    std::thread(sink_loop, d).detach();
   }
 
-  // Clean up
-  if (srcListenerFd >= 0)
-    close(srcListenerFd);
-  if (dstListenerFd >= 0)
-    close(dstListenerFd);
+  if (src_listener >= 0)
+    close(src_listener);
+  if (dst_listener >= 0)
+    close(dst_listener);
   return 0;
 }

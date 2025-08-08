@@ -1,3 +1,4 @@
 ctmp_proxy
-README.md.save
-*.o
+ctmp_stage1
+*.log
+.DS_Store
