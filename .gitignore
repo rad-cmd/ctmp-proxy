@@ -2,3 +2,9 @@ ctmp_proxy
 ctmp_stage1
 *.log
 .DS_Store
+ctmp_proxy
+ctmp_stage1
+*.log
+*.o
+*.DS_Store
+.vscode/
