@@ -61,17 +61,24 @@ Then:
 
 ## Testing
 
-Open a new terminal window for testing  
+You’ll need the official Stage 1 and Stage 2 (reloaded) test suites from the challenge. Extract them anywhere you like.
 
-**Stage 1 tests**
-- `cd ~/projects/wire-storm`
-- `python3 tests.py`
+Set the path to where you unzipped the tests (edit this path):
 
-**Stage 2 tests**  
-- `cd ~/projects/wire-storm/ws-second-stage/wire-storm-reloaded-1.0.0`  
-- `python3 tests.py`  
+`TESTS_DIR="/path/to/where/you/unzipped/tests"`
 
-Both sets of tests should print **OK**
+**Run Stage 1 tests:**
+
+'python3 "$TESTS_DIR/wire-storm/tests.py"'
+
+**Run Stage 2 tests:**
+
+`python3 "$TESTS_DIR/ws-second-stage/wire-storm-reloaded-1.0.0/tests.py"`
+
+Expected result (after each set of tests):
+
+**OK**
+
 
 ## License
 Submitted under CoreTech’s WIRE STORM challenge terms. 
