@@ -8,3 +8,9 @@ ctmp_stage1
 *.o
 *.DS_Store
 .vscode/
+ctmp_proxy
+ctmp_stage1
+*.log
+*.o
+.DS_Store
+.vscode/
